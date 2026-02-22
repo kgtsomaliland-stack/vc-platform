@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 
@@ -25,8 +26,15 @@ public static class DbContextOptionsBuilderExtensions
                     sqlServerOptionsBuilder.UseCompatibilityLevel(compatibilityLevel.Value);
                 }
 
+                var parameterTranslationMode = configuration.GetValue<ParameterTranslationMode?>("SqlServer:ParameterTranslationMode", null);
+                if (parameterTranslationMode != null)
+                {
+                    sqlServerOptionsBuilder.UseParameterizedCollectionMode(parameterTranslationMode.Value);
+                }
+
                 sqlServerOptionsBuilder.MigrationsAssembly(migrationsAssemblyMarkerType.Assembly.GetName().Name);
                 sqlServerOptionsAction?.Invoke(sqlServerOptionsBuilder, configuration);
-            });
+            })
+            .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.NoEntityTypeConfigurationsWarning));
     }
 }

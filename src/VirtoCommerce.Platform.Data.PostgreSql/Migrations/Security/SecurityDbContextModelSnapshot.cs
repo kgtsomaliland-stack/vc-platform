@@ -17,7 +17,7 @@ namespace VirtoCommerce.Platform.Data.PostgreSql.Migrations.Security
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.11")
+                .HasAnnotation("ProductVersion", "10.0.1")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -123,10 +123,12 @@ namespace VirtoCommerce.Platform.Data.PostgreSql.Migrations.Security
                         .HasColumnType("character varying(128)");
 
                     b.Property<string>("LoginProvider")
-                        .HasColumnType("text");
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<string>("Name")
-                        .HasColumnType("text");
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<string>("Value")
                         .HasColumnType("text");
@@ -158,7 +160,8 @@ namespace VirtoCommerce.Platform.Data.PostgreSql.Migrations.Security
 
                     b.Property<string>("Email")
                         .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                        .HasColumnType("character varying(256)")
+                        .UseCollation("case_insensitive");
 
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
@@ -231,7 +234,8 @@ namespace VirtoCommerce.Platform.Data.PostgreSql.Migrations.Security
 
                     b.Property<string>("UserName")
                         .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                        .HasColumnType("character varying(256)")
+                        .UseCollation("case_insensitive");
 
                     b.Property<string>("UserType")
                         .HasMaxLength(64)
@@ -265,7 +269,8 @@ namespace VirtoCommerce.Platform.Data.PostgreSql.Migrations.Security
 
                     b.Property<string>("Name")
                         .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                        .HasColumnType("character varying(256)")
+                        .UseCollation("case_insensitive");
 
                     b.Property<string>("NormalizedName")
                         .HasMaxLength(256)
@@ -476,8 +481,8 @@ namespace VirtoCommerce.Platform.Data.PostgreSql.Migrations.Security
                         .HasColumnType("character varying(400)");
 
                     b.Property<string>("Type")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
 
                     b.Property<string>("UserAgent")
                         .HasColumnType("text");

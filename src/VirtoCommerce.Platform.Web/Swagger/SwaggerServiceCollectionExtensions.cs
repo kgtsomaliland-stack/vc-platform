@@ -1,20 +1,23 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.Filters;
 using Swashbuckle.AspNetCore.Swagger;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using VirtoCommerce.Platform.Core.Common;
 using VirtoCommerce.Platform.Core.DeveloperTools;
+using VirtoCommerce.Platform.Core.DynamicProperties;
 using VirtoCommerce.Platform.Core.Modularity;
 using VirtoCommerce.Platform.Core.Swagger;
 
@@ -85,27 +88,16 @@ namespace VirtoCommerce.Platform.Web.Swagger
                 c.OperationFilter<FileResponseTypeFilter>();
                 c.OperationFilter<OptionalParametersFilter>();
                 c.OperationFilter<ArrayInQueryParametersFilter>();
-                c.OperationFilter<SecurityRequirementsOperationFilter>();
+                c.OperationFilter<UploadFileOperationFilter>();
                 c.OperationFilter<ModuleInfoFilter>();
                 c.OperationFilter<OpenIDEndpointDescriptionFilter>();
-                c.SchemaFilter<EnumSchemaFilter>();
                 c.SchemaFilter<SwaggerIgnoreFilter>();
-                c.MapType<object>(() => new OpenApiSchema { Type = "object" });
+                c.MapType<object>(() => new OpenApiSchema { Type = JsonSchemaType.Object });
                 c.AddModulesXmlComments(provider);
                 c.CustomOperationIds(apiDesc =>
                     apiDesc.TryGetMethodInfo(out var methodInfo) ? $"{((ControllerActionDescriptor)apiDesc.ActionDescriptor).ControllerName}_{methodInfo.Name}" : null);
-                c.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
-                {
-                    Type = SecuritySchemeType.OAuth2,
-                    Description = "OAuth2 Resource Owner Password Grant flow",
-                    Flows = new OpenApiOAuthFlows
-                    {
-                        Password = new OpenApiOAuthFlow
-                        {
-                            TokenUrl = new Uri("/connect/token", UriKind.Relative)
-                        }
-                    },
-                });
+
+                c.AddSecuritySchemes();
 
                 c.DocInclusionPredicate((docName, apiDesc) => DocInclusionPredicateCustomStrategy(modules, docName, apiDesc));
                 c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
@@ -225,7 +217,7 @@ namespace VirtoCommerce.Platform.Web.Swagger
             var moduleAssembly = actionDescriptor?.ControllerTypeInfo.Assembly ?? Assembly.GetExecutingAssembly();
             var module = moduleCatalog.Modules.FirstOrDefault(m => m.ModuleInstance != null && m.Assembly == moduleAssembly);
 
-            return module?.ModuleName ?? "Platform";
+            return module?.ModuleName ?? "VirtoCommerce.Platform";
         }
 
         /// <summary>
@@ -249,6 +241,63 @@ namespace VirtoCommerce.Platform.Web.Swagger
                     options.IncludeXmlComments(xmlComment);
                 }
             }
+        }
+
+        /// <summary>
+        /// Add security schemes definitions and operation filters for authentication
+        /// </summary>
+        private static void AddSecuritySchemes(this SwaggerGenOptions options)
+        {
+            options.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.OAuth2,
+                Description = "OAuth2 Resource Owner Password Grant flow",
+                Flows = new OpenApiOAuthFlows
+                {
+                    ClientCredentials = new OpenApiOAuthFlow
+                    {
+                        TokenUrl = new Uri("/connect/token", UriKind.Relative)
+                    },
+                    Password = new OpenApiOAuthFlow
+                    {
+                        TokenUrl = new Uri("/connect/token", UriKind.Relative)
+                    }
+                },
+            });
+            options.AddSecurityDefinition("api_key", new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.ApiKey,
+                Description = "API Key authentication",
+                In = ParameterLocation.Query,
+                Name = "api_key",
+            });
+            options.AddSecurityDefinition("api_key_header", new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.ApiKey,
+                Description = "API Key authentication (alternative via header)",
+                In = ParameterLocation.Header,
+                Name = "api_key",
+            });
+            options.AddSecurityDefinition("http-signature", new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.Http,
+                Scheme = "signature",
+                Description = "HTTP Signature authentication using Authorization header",
+            });
+            options.AddSecurityDefinition("basic", new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.Http,
+                Scheme = "basic",
+                Description = "Basic authentication using username and password",
+            });
+
+            // Register SecurityRequirementsOperationFilter for each security scheme
+            // This allows API clients to use any of the supported authentication methods
+            options.OperationFilter<SecurityRequirementsOperationFilter>(true, "oauth2");
+            options.OperationFilter<SecurityRequirementsOperationFilter>(true, "api_key");
+            options.OperationFilter<SecurityRequirementsOperationFilter>(true, "api_key_header");
+            options.OperationFilter<SecurityRequirementsOperationFilter>(true, "http-signature");
+            options.OperationFilter<SecurityRequirementsOperationFilter>(true, "basic");
         }
     }
 }
